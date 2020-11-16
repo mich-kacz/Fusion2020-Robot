@@ -13,6 +13,131 @@ class Camera_capture():
 		self.adress=5006
 
 	
+	#Wykrycie konturów na obrazie
+	def detect_edges(self, image):
+    		image_HSV=cv2.cvtColor(image,cv2.COLOR_BGR2HSV) #Zamiana obrazu na HSV(TEN SAM KOLOR MIMO ODCIENIU)
+    		lower_blue = np.array([140, 40, 40]) #Dolna granica koloru na skali HUE
+    		upper_blue = np.array([180, 255, 255])#Gorna granica koloru(to jest pierwszy parametr, reszta bez zmian!!)
+    		mask = cv2.inRange(image_HSV, lower_blue, upper_blue)#Zostawiam tylko kolory o okreslonych granicach
+    		edges = cv2.Canny(mask, 200, 400)#Funkcja znajduje kontury(Parametry zostaja bez zmian!!!)
+    		return edges
+    		
+    		
+    	#Wymazanie czesci obrazu ktory nas nie interesuje
+	def erased_area(self, image):
+    		height, width=image.shape#Wymiary obrazu
+    		mask=np.zeros_like(image)#Tablica zer wielkosci obrazu
+    		polygon = np.array([[(0, height * 1 / 2), 
+                         (width, height * 1 / 2),
+                         (width, height), 
+                         (0, height),]], np.int32)#Funkcja okresla obszar wymazywania(np.1/2)
+    		cv2.fillPoly(mask, polygon, 255)#Dopasowanie obszaru zer do wymiaru
+    		cropped_edges = cv2.bitwise_and(image, mask)#Wymazanie obszaru ktory nas nie interesuje
+    		return cropped_edges
+    		
+    		
+    	#Wykrywa fragmenty lini 
+	def detect_line_segments(self, image):
+    		rho=1 #Dystans od poczatku dla transformacji Hough'a
+    		angle=np.pi/180 #precyzja kata w radianach
+    		min_threshold=10 #minimal number of votes to consider as a line
+    		segments=cv2.HoughLinesP(image, rho, angle, min_threshold,
+                             np.array([]),  minLineLength=8, maxLineGap=4)
+    		return segments
+    		
+	def make_points(self, image, line):
+		height, width, _ = image.shape
+		slope, intercept = line
+		y1 = height  # bottom of the frame
+		y2 = int(y1 * 1 / 2)  # make points from middle of the frame down
+		
+		if(slope==0):
+			slope=0.001
+		# bound the coordinates within the frame
+		x1=max(-width, min(2*width, int((y1 - intercept)/slope)))
+		x2=max(-width, min(2*width, int((y2 - intercept)/slope)))
+		return [[x1, y1, x2, y2]]
+    		
+	def creating_two_lanes(self, image, segments):
+		lane_lines = []
+		if segments is None:
+			#print('No line_segment segments detected')
+			return lane_lines
+    
+		height, width, _ = image.shape
+		left_fit = []
+		right_fit = []
+		#Regions of lines
+		boundary = 1/3 #Dziele ekran na czesci w ktorych powinny byc linie
+		left_region_boundary = width * (1 - boundary)  # left lane line segment should be on left 2/3 of the screen
+		right_region_boundary = width * boundary # right lane line segment should be on left 2/3 of the screen
+
+		for line_segment in segments:
+			for x1, y1, x2, y2 in line_segment:
+				if x1 == x2:
+					#print('skipping vertical line segment (slope=inf): %s' % line_segment)
+					continue
+				fit = np.polyfit((x1, x2), (y1, y2), 1)
+				slope = fit[0]
+				intercept = fit[1]
+				if slope < 0:
+					if x1 < left_region_boundary and x2 < left_region_boundary:
+						left_fit.append((slope, intercept))
+				else:
+					if x1 > right_region_boundary and x2 > right_region_boundary:
+						right_fit.append((slope, intercept))
+					
+		left_fit_average = np.average(left_fit, axis=0)
+		if len(left_fit) > 0:
+			lane_lines.append(self.make_points(image, left_fit_average))
+			
+		right_fit_average = np.average(right_fit, axis=0)
+		if len(right_fit) > 0:
+			lane_lines.append(self.make_points(image, right_fit_average))
+		
+		return lane_lines
+	
+	
+	def display_lines(self, image, lines, line_color=(0, 255, 0), line_width=4):
+    		line_image = np.zeros_like(image)
+    		if lines is not None:
+       		 for line in lines:
+       		 	if line is not None:
+            				for x1, y1, x2, y2 in line:
+                				cv2.line(line_image, (x1, y1), (x2, y2), line_color, line_width)
+    		line_image = cv2.addWeighted(image, 0.8, line_image, 1, 1)
+    		return line_image
+    		
+    	
+	def Position_control(self, image, lines):
+		count=0
+		for elem in lines:
+			count+=1
+		if count==2:
+			height, width, _ = image.shape
+			_, _, left_line, _ = lines[0][0]
+			_, _, right_line, _ = lines[1][0]
+			center_start=(int((left_line+right_line)/2), int(height-height/10))
+			center_end=(int((left_line+right_line)/2), int(2*height/3))
+			center=(int(width/2), int(4*height/5))
+			text_coordinates=(int(width-width/6), int(height-height/10))
+		   
+			image = cv2.arrowedLine(image, center_start, center_end, (0, 255, 0), 5)
+			image=cv2.circle(image, center, 15, (255, 0, 0), 4)
+		    
+			offset=center[0]-center_start[0] #Dodatni offset->skret w lewo
+		    
+			if offset>0:
+				cv2.putText(image,'Lewo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
+			else:
+				cv2.putText(image,'Prawo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
+			
+		return image
+	
+	
+	
+	
+	
 	
 	def send_image(self, frame):# funkcja ktora wysyla odebrany obraz
 		MAX_DGRAM=2**16
@@ -34,7 +159,13 @@ class Camera_capture():
 		cap=cv2.VideoCapture(0, cv2.CAP_V4L2)
 		while(cap.isOpened()):
 			_, frame=cap.read()
-			self.send_image(frame)	
+			edges=self.detect_edges(frame) #Zaznaczam kontury
+			edges=self.erased_area(edges)
+			segments=self.detect_line_segments(edges)
+			land_lanes=self.creating_two_lanes(frame, segments)
+			ready_image = self.display_lines(frame, land_lanes)
+			ready_image=self.Position_control(ready_image, land_lanes)
+			self.send_image(ready_image)	
 
 		cap.release()
 		cv2.destroyAllWindows()
