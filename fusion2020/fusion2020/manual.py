@@ -26,7 +26,7 @@ class ManualControl(Node):
         self.subscription = self.create_subscription(Float64, 'manual', self.listener_callback, 10)
         self.subscription  # prevent unused variable warning
         try:
-            self.ser=serial.Serial("/dev/ttyUSB0", 19200)
+            self.ser=serial.Serial("/dev/ttyACM0", 19200)
         except:
             print("Uart not connected")
 
@@ -134,9 +134,24 @@ class ManualControl(Node):
         print("kierunek lewego silnika = ", left_motor_direction)
         print("flag = ", flag)
         controls = itemp*10000 + right_motor_pwm*1000 + left_motor_pwm*100 + right_motor_direction*10 + left_motor_direction
-        print(str(controls))
+
+        frame=str(controls)
+        print(frame)
+        '''
+        command='10'
+        controlsum=0
+    
+        frame=command + frame
+
+        frame_size=len(frame)
+
+        for i in range(frame_size-1):
+            controlsum= (controlsum + ord(frame[i]))%256
+        frame=':' + frame + str(controlsum) + '\n'
+        
+        print(frame)'''
         try:
-            self.ser.write(str(controls).encode())
+            self.ser.write(frame.encode())
         except:
             print("UART error!\n")
 

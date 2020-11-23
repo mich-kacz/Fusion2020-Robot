@@ -3,10 +3,16 @@ import numpy as np
 import socket
 import struct
 import math
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import Float64MultiArray
 
-class Camera_capture():
+class Camera_capture(Node):
 
 	def __init__(self):
+		super().__init__('camera_capture')
+		self.publisher_=self.create_publisher(Float64MultiArray, 'auto_mode_node', 10 )
+	
 		#Constructor creates socket, port and gets ip from input
 		self.Client_socket=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.server_ip=input('Podaj ip serwera - ')
@@ -16,8 +22,8 @@ class Camera_capture():
 	#Wykrycie konturów na obrazie
 	def detect_edges(self, image):
     		image_HSV=cv2.cvtColor(image,cv2.COLOR_BGR2HSV) #Zamiana obrazu na HSV(TEN SAM KOLOR MIMO ODCIENIU)
-    		lower_blue = np.array([140, 40, 40]) #Dolna granica koloru na skali HUE
-    		upper_blue = np.array([180, 255, 255])#Gorna granica koloru(to jest pierwszy parametr, reszta bez zmian!!)
+    		lower_blue = np.array([145, 40, 40]) #Dolna granica koloru na skali HUE
+    		upper_blue = np.array([179, 255, 255])#Gorna granica koloru(to jest pierwszy parametr, reszta bez zmian!!)
     		mask = cv2.inRange(image_HSV, lower_blue, upper_blue)#Zostawiam tylko kolory o okreslonych granicach
     		edges = cv2.Canny(mask, 200, 400)#Funkcja znajduje kontury(Parametry zostaja bez zmian!!!)
     		return edges
@@ -40,9 +46,9 @@ class Camera_capture():
 	def detect_line_segments(self, image):
     		rho=1 #Dystans od poczatku dla transformacji Hough'a
     		angle=np.pi/180 #precyzja kata w radianach
-    		min_threshold=10 #minimal number of votes to consider as a line
+    		min_threshold=20 #minimal number of votes to consider as a line
     		segments=cv2.HoughLinesP(image, rho, angle, min_threshold,
-                             np.array([]),  minLineLength=8, maxLineGap=4)
+                             np.array([]),  minLineLength=5, maxLineGap=4)
     		return segments
     		
 	def make_points(self, image, line):
@@ -68,7 +74,7 @@ class Camera_capture():
 		left_fit = []
 		right_fit = []
 		#Regions of lines
-		boundary = 1/3 #Dziele ekran na czesci w ktorych powinny byc linie
+		boundary = 1/2 #Dziele ekran na czesci w ktorych powinny byc linie
 		left_region_boundary = width * (1 - boundary)  # left lane line segment should be on left 2/3 of the screen
 		right_region_boundary = width * boundary # right lane line segment should be on left 2/3 of the screen
 
@@ -109,7 +115,7 @@ class Camera_capture():
     		return line_image
     		
     	
-	def Position_control(self, image, lines):
+	def Position_control(self, image, lines, offset=0):
 		count=0
 		for elem in lines:
 			count+=1
@@ -132,7 +138,7 @@ class Camera_capture():
 			else:
 				cv2.putText(image,'Prawo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
 			
-		return image
+		return image, offset, count
 	
 	
 	
@@ -157,6 +163,8 @@ class Camera_capture():
 
 	def camera_start(self): #Funkcja ktora odbiera obraz z kamery
 		cap=cv2.VideoCapture(0, cv2.CAP_V4L2)
+		#cap.set(3, 1280)
+		#cap.set(4, 720)
 		while(cap.isOpened()):
 			_, frame=cap.read()
 			edges=self.detect_edges(frame) #Zaznaczam kontury
@@ -164,7 +172,11 @@ class Camera_capture():
 			segments=self.detect_line_segments(edges)
 			land_lanes=self.creating_two_lanes(frame, segments)
 			ready_image = self.display_lines(frame, land_lanes)
-			ready_image=self.Position_control(ready_image, land_lanes)
+			(ready_image, offset, is_lines)=self.Position_control(ready_image, land_lanes)
+			
+			message=Float64MultiArray()
+			message.data=[float(offset), float(is_lines)]
+			self.publisher_.publish(message)
 			self.send_image(ready_image)	
 
 		cap.release()
@@ -173,10 +185,15 @@ class Camera_capture():
 		
 		
 
-def main():
+def main(args=None):
     print('Hi from robot.')
+    rclpy.init(args=args)
+    
     camera_capture=Camera_capture()
     camera_capture.camera_start()
+    
+    camera_capture.destroy_node()
+    rclpy.shutdown()
     print('Bye bye')
 
 if __name__ == '__main__':

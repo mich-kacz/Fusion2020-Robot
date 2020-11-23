@@ -11,7 +11,7 @@ else:
     import tty
 print("\tw\na\ts\td\t\n+/- zwiększa prędkość")
 Server_socket=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-Server_socket.bind(('192.168.1.4', 5008))
+Server_socket.bind(('192.168.50.240', 5008))
 
 moveBindings = {
     'w': (1, 0, 1, 0),
