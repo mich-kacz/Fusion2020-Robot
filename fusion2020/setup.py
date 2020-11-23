@@ -24,6 +24,7 @@ setup(
             'keyboard = fusion2020.teleop_twist_keyboard:main',
             'control = fusion2020.communication:main',
             'manual = fusion2020.manual:main',
+            'auto_mode = fusion2020.auto_driving:main',
         ],
     },
 )
