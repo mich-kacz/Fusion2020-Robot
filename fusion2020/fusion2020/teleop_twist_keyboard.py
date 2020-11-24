@@ -85,12 +85,18 @@ def main():
                 th = moveBindings[key][3]
             elif key in speedBindings.keys():
                 speed = speed + speedBindings[key][0]
-                if(speed > 7.0):
-                        control_vel = 1.0
-                        speed = 7.0
-                if(speed < 1.0):
-                        control_vel = 1.0
+                if(speed > 9.0):
+                    if(control_vel==1.0):
+                        control_vel = 2.0
                         speed = 1.0
+                    else:
+                        speed=9.0
+                if(speed < 1.0):
+                    if(control_vel==1.0):
+                        speed = 1.0
+                    else:
+                        speed=9.0
+                        control_vel=1.0
                 print(vels(speed, control_vel))
                 status = (status + 1) % 15
             else:

@@ -26,7 +26,7 @@ class ManualControl(Node):
         self.subscription = self.create_subscription(Float64, 'manual', self.listener_callback, 10)
         self.subscription  # prevent unused variable warning
         try:
-            self.ser=serial.Serial("/dev/ttyACM0", 19200)
+            self.ser=serial.Serial("/dev/ttyUSB0", 19200)
         except:
             print("Uart not connected")
 
