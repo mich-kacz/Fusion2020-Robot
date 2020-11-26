@@ -87,7 +87,7 @@ void setup(void)
   for(i=4;i<=7;i++)
     pinMode(i, OUTPUT);  
   Serial.begin(19200);      //Set Baud Rate
-  Serial.setTimeout(10);
+  Serial.setTimeout(7);
   digitalWrite(E1,LOW);  
   digitalWrite(E2,LOW);
   //pinMode(2,INPUT);
@@ -106,10 +106,10 @@ void loop(void)
 {
  
   //read DATA via Serial
-  if (Serial.available()>4)
+  if (Serial.available())
   {
     val_x=Serial.readString().toInt();  
-  Serial.println(val_x);
+  //Serial.println(val_x);
   //decrypt DATA from int number
   base_speed=(val_x/10000);
   if(base_speed != 1 && base_speed != 2)
@@ -148,13 +148,16 @@ void loop(void)
       w_right = map(right_motor_pwm, 1, 18, 30, 210);
       w_left = map(left_motor_pwm, 1, 18, 30, 210);
   }
-  }
+  }  
+    if(Serial.availableForWrite())
+      Serial.write("Hello\n");
+      else
+        Serial.println("Not available for write");
   }
  if(timer.hasPassed(20))
- {
+ {   
   y_right = (60*encoderPos1/(500*0.02));//rpm
   y_left = (60*encoderPos2/(500*0.02));//rpm
-  Serial.println(y_left);
   encoderPos1 = encoderPos2 = 0;
   timer.restart();
 } 
