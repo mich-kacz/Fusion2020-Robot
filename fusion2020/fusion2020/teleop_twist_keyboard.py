@@ -86,7 +86,7 @@ def main():
             elif key in speedBindings.keys():
                 speed = speed + speedBindings[key][0]
                 if(speed > 9.0):
-                    if(control_vel==1.0):
+                    if(control_vel==2.0): #Tu zmiana na 2 bo jest blad gdzies
                         control_vel = 2.0
                         speed = 1.0
                     else:

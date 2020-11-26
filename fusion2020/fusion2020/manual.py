@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 import serial
 from std_msgs.msg import Float64
+from time import sleep
 ## global variables
 val_x=0
 itemp=0
@@ -26,7 +27,7 @@ class ManualControl(Node):
         self.subscription = self.create_subscription(Float64, 'manual', self.listener_callback, 10)
         self.subscription  # prevent unused variable warning
         try:
-            self.ser=serial.Serial("/dev/ttyUSB0", 19200)
+            self.ser=serial.Serial("/dev/ttyACM0", 19200)
         except:
             print("Uart not connected")
 
@@ -137,23 +138,22 @@ class ManualControl(Node):
 
         frame=str(controls)
         print(frame)
-        '''
-        command='10'
-        controlsum=0
-    
-        frame=command + frame
-
-        frame_size=len(frame)
-
-        for i in range(frame_size-1):
-            controlsum= (controlsum + ord(frame[i]))%256
-        frame=':' + frame + str(controlsum) + '\n'
-        
-        print(frame)'''
         try:
             self.ser.write(frame.encode())
         except:
             print("UART error!\n")
+
+        self.Read_Uart()
+
+    def Read_Uart(self):
+        try:
+            ser_bytes=self.ser.readline()
+            print('Dane z Uartu: ')
+            print(str(ser_bytes.decode())+'\n')
+                
+        except:
+            print('Can not receive data from Uart')
+
 
 def main(args=None):
     rclpy.init(args=args)
