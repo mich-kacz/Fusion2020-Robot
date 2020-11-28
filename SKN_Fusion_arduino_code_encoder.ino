@@ -26,7 +26,7 @@ int encoderPinALast = LOW;
 int encoderPinANow = LOW;
 int encoderPinCLast = LOW;
 int encoderPinCNow = LOW;
-Chrono timer;
+Chrono timer, timer2;
 int counterR=0,counterL=0;//rotation counter (encoder)
 double w_left=0, w_right=0;
 double y_left=0, y_right=0;
@@ -57,6 +57,15 @@ void enco2 ()
       encoderPos2++;
     }
   encoderPinCLast = encoderPinCNow;
+}
+
+void Sensors()
+{
+    timer2.restart();
+    if(Serial.availableForWrite())
+      Serial.write("123456");
+    else
+      Serial.println("Not available for write");
 }
 
 void stop(void)                    //Stop
@@ -100,6 +109,8 @@ void setup(void)
   myPID2.SetSampleTime(20);
   Setpoint1 = w_left;
   Setpoint2 = w_right;
+  timer.restart();
+  timer2.restart();
 }
 
 void loop(void)
@@ -149,11 +160,13 @@ void loop(void)
       w_left = map(left_motor_pwm, 1, 18, 30, 210);
   }
   }  
-    if(Serial.availableForWrite())
-      Serial.write("Hello\n");
-      else
-        Serial.println("Not available for write");
   }
+
+  if(timer2.hasPassed(500))
+  {
+    Sensors();
+  }
+  
  if(timer.hasPassed(20))
  {   
   y_right = (60*encoderPos1/(500*0.02));//rpm
