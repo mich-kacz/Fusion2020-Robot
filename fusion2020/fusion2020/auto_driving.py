@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray
+from std_msgs.msg import Float64MultiArray, String
 
 
 class Automated_driving(Node):
@@ -23,6 +23,7 @@ class Automated_driving(Node):
     def timer_callback(self, msg):
         self.offset= msg.data[0]
         self.is_line=msg.data[1]
+
 
 def main(args=None):
         rclpy.init(args=args)

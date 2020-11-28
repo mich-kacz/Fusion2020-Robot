@@ -4,19 +4,30 @@ import socket
 import struct
 import math
 import rclpy
+import serial
+from time import process_time
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
 
 class Camera_capture(Node):
-
+	
+	sensor='START'
+	
 	def __init__(self):
 		super().__init__('camera_capture')
 		self.publisher_=self.create_publisher(Float64MultiArray, 'auto_mode_node', 10 )
-	
+		
+		try:
+			self.ser=serial.Serial("/dev/ttyACM0", 19200)
+		except:
+			print('Uart not connected')
+		
 		#Constructor creates socket, port and gets ip from input
 		self.Client_socket=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.server_ip=input('Podaj ip serwera - ')
 		self.adress=5006
+	
+		
 
 	
 	#Wykrycie konturów na obrazie
@@ -117,10 +128,11 @@ class Camera_capture(Node):
     	
 	def Position_control(self, image, lines, offset=0):
 		count=0
+		height, width, _ = image.shape
+		text_sensor_coordinates= (int(width-width*2/3), int(height-height*5/6))
 		for elem in lines:
 			count+=1
 		if count==2:
-			height, width, _ = image.shape
 			_, _, left_line, _ = lines[0][0]
 			_, _, right_line, _ = lines[1][0]
 			center_start=(int((left_line+right_line)/2), int(height-height/10))
@@ -137,11 +149,20 @@ class Camera_capture(Node):
 				cv2.putText(image,'Lewo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
 			else:
 				cv2.putText(image,'Prawo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
+				
+		cv2.putText(image, 'Czujnik: ' + str(self.sensor), text_sensor_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
 			
 		return image, offset, count
 	
 	
-	
+	def Read_Uart(self):
+		try:	
+			if self.ser.in_waiting>0 :
+				self.sensor=self.ser.read(self.ser.in_waiting)
+				self.sensor=self.sensor.decode()
+				print('Odebralem')
+		except:
+			print('Can not receive data from uart')
 	
 	
 	
@@ -165,6 +186,7 @@ class Camera_capture(Node):
 		cap=cv2.VideoCapture(0, cv2.CAP_V4L2)
 		#cap.set(3, 1280)
 		#cap.set(4, 720)
+		t1=process_time()
 		while(cap.isOpened()):
 			_, frame=cap.read()
 			edges=self.detect_edges(frame) #Zaznaczam kontury
@@ -172,6 +194,11 @@ class Camera_capture(Node):
 			segments=self.detect_line_segments(edges)
 			land_lanes=self.creating_two_lanes(frame, segments)
 			ready_image = self.display_lines(frame, land_lanes)
+			
+			if(process_time()-t1>0.2):
+				self.Read_Uart()
+				t1=process_time()
+			
 			(ready_image, offset, is_lines)=self.Position_control(ready_image, land_lanes)
 			
 			message=Float64MultiArray()
@@ -190,7 +217,9 @@ def main(args=None):
     rclpy.init(args=args)
     
     camera_capture=Camera_capture()
+    
     camera_capture.camera_start()
+    
     
     camera_capture.destroy_node()
     rclpy.shutdown()
