@@ -63,9 +63,9 @@ void Sensors()
 {
     timer2.restart();
     if(Serial.availableForWrite())
-      Serial.write("123456");
+      Serial.print("123456");
     else
-      Serial.println("Not available for write");
+      Serial.print("Not available for write");
 }
 
 void stop(void)                    //Stop
@@ -85,7 +85,7 @@ void current_sense()                  // current sense and diagnosis
     counter++;
     if(counter==3){
       counter=0;
-      Serial.println("Motror Driver Warning");
+      //Serial.println("Motror Driver Warning");
     }  
   }
 }
@@ -125,7 +125,7 @@ void loop(void)
   base_speed=(val_x/10000);
   if(base_speed != 1 && base_speed != 2)
   {
-    Serial.println ("Bad base speed");
+    //Serial.println ("Bad base speed");
     base_speed=0;
   }
 
@@ -148,16 +148,16 @@ void loop(void)
     if(right_motor_pwm == 0)
     {
       w_right = 0;
-      w_left = map(left_motor_pwm, 1, 18, 30, 210);
+      w_left = map(left_motor_pwm, 1, 9, 30, 210);
     }
     if(left_motor_pwm == 0)
     {
       w_left = 0;
-      w_right = map(right_motor_pwm, 1, 18, 30, 210);
+      w_right = map(right_motor_pwm, 1, 9, 30, 210);
     }
     if(right_motor_pwm==left_motor_pwm){
-      w_right = map(right_motor_pwm, 1, 18, 30, 210);
-      w_left = map(left_motor_pwm, 1, 18, 30, 210);
+      w_right = map(right_motor_pwm, 1, 9, 30, 210);
+      w_left = map(left_motor_pwm, 1, 9, 30, 210);
   }
   }  
   }
