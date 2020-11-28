@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 import serial
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, String
 from time import sleep
 ## global variables
 val_x=0
@@ -25,6 +25,9 @@ class ManualControl(Node):
     def __init__(self):
         super().__init__('manual_control')
         self.subscription = self.create_subscription(Float64, 'manual', self.listener_callback, 10)
+        self.publisher_=self.create_publisher(String, 'sensors', 10)
+       # timer_period=0.5
+       # self.timer = self.create_timer(timer_period, self.Read_Uart)
         self.subscription  # prevent unused variable warning
         try:
             self.ser=serial.Serial("/dev/ttyACM0", 19200)
@@ -143,17 +146,19 @@ class ManualControl(Node):
         except:
             print("UART error!\n")
 
-        self.Read_Uart()
-
+    '''
     def Read_Uart(self):
         try:
             ser_bytes=self.ser.readline()
-            print('Dane z Uartu: ')
-            print(str(ser_bytes.decode())+'\n')
+            message=String()
+            message.data=str(ser_bytes.decode())
+            print(message.data + '\n')
+            self.publisher_.publish(message)
+            
                 
         except:
             print('Can not receive data from Uart')
-
+    '''
 
 def main(args=None):
     rclpy.init(args=args)
