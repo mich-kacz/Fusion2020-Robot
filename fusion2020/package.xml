@@ -23,5 +23,6 @@
 	  <exec_depend>math</exec_depend>
 	  <exec_depend>serial</exec_depend>
 	  <exec_depend>std_msgs</exec_depend>
+	  <exec_depend>time</exec_depend>
   </export>
 </package>
