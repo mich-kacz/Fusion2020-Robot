@@ -20,13 +20,17 @@ int encoderPinA = 2;
 int encoderPinB = 10;
 int encoderPinC = 3;
 int encoderPinD = 11;
+int Sensor_A0 = A0;
+int Sensor_A1 = A1;
+int URECHO = 9;         // PWM Output 0-25000US,Every 50US represent 1cm
+int URTRIG = 8;         // trigger pin
 double encoderPos1 = 0;
 double encoderPos2 = 0;
 int encoderPinALast = LOW;
 int encoderPinANow = LOW;
 int encoderPinCLast = LOW;
 int encoderPinCNow = LOW;
-Chrono timer, timer2;
+Chrono timer;
 int counterR=0,counterL=0;//rotation counter (encoder)
 double w_left=0, w_right=0;
 double y_left=0, y_right=0;
@@ -37,6 +41,8 @@ double Kdl =  0.0039 + 0.02, Kdp =  0.0037 + 0.02;
 double Setpoint1=0, Setpoint2=0, Input1, Output1, Input2, Output2;
 PID myPID1(&Input1, &Output1, &Setpoint1, Kpp, Kip, Kdp, DIRECT);
 PID myPID2(&Input2, &Output2, &Setpoint2, Kpl, Kil, Kdl, DIRECT);
+
+unsigned short iterator=0;
 
 void enco1 ()
 {
@@ -59,13 +65,76 @@ void enco2 ()
   encoderPinCLast = encoderPinCNow;
 }
 
-void Sensors()
+void Sensors(short id)
 {
-    timer2.restart();
-    if(Serial.availableForWrite())
-      Serial.print("123456");
+    unsigned int SensorC0= 0;
+    double SensorA0= 0;
+    double SensorA1= 0;
+    double p1,p2,q1,q2, x0, x1, y;
+
+   //Wspolczynniki funkcji
+   p1=22.2;
+   p2=-0.0004202;
+   q1=-0.2385;
+   q2=0.04675;
+    
+    digitalWrite(URTRIG, LOW);
+    digitalWrite(URTRIG, HIGH);
+
+    SensorA0=analogRead(Sensor_A0);
+    SensorA1=analogRead(Sensor_A1);
+  
+    x0=SensorA0*0.0049;
+    x1=SensorA1*0.0049;
+
+    
+
+    unsigned long LowLevelTime = pulseIn(URECHO, LOW) ;
+    if (LowLevelTime >= 50000)              // the reading is invalid.
+    {
+      Serial.println("ERROR 001");
+    }
     else
-      Serial.print("Not available for write");
+    {
+      SensorC0 = LowLevelTime / 50;  // every 50us low level stands for 1cm
+
+    
+      if(id==1)
+      {
+      if(Serial.availableForWrite())
+      {
+        Serial.print("F: " + String(SensorC0)+ " c");
+      }
+      else
+        Serial.println("ERROR 002");
+
+      }
+      }
+    
+    if(id==2)
+    {
+    y=(p1*x1 + p2)/(x1*x1 + q1*x1 + q2);
+    if(Serial.availableForWrite() && id==2)
+    {
+      Serial.print("L: " + String(y) + " c");
+    }
+    else
+        Serial.println("ERROR 003");
+
+    }
+
+    if(id==3)
+    {
+    y=(p1*x0 + p2)/(x0*x0 + q1*x0 + q2);
+    if(Serial.availableForWrite() && id==3)
+    {
+      Serial.print("R: " + String(y) + " c");
+    }
+    else
+        Serial.println("ERROR 004");
+
+    }
+  
 }
 
 void stop(void)                    //Stop
@@ -99,8 +168,11 @@ void setup(void)
   Serial.setTimeout(7);
   digitalWrite(E1,LOW);  
   digitalWrite(E2,LOW);
-  //pinMode(2,INPUT);
-  //pinMode(3,INPUT);
+  
+  pinMode(URTRIG, OUTPUT);                   // A low pull on pin COMP/TRIG
+  digitalWrite(URTRIG, HIGH);                // Set to HIGH
+  pinMode(URECHO, INPUT);                    // Sending Enable PWM mode command
+  
   attachInterrupt(digitalPinToInterrupt(encoderPinA), enco1, FALLING);
   attachInterrupt(digitalPinToInterrupt(encoderPinC), enco2, FALLING);
   myPID1.SetMode(AUTOMATIC);
@@ -110,7 +182,8 @@ void setup(void)
   Setpoint1 = w_left;
   Setpoint2 = w_right;
   timer.restart();
-  timer2.restart();
+  delay(500);
+  Serial.println("Init the sensor");
 }
 
 void loop(void)
@@ -149,31 +222,44 @@ void loop(void)
     {
       w_right = 0;
       w_left = map(left_motor_pwm, 1, 9, 30, 210);
-    }
+    }else
     if(left_motor_pwm == 0)
     {
       w_left = 0;
       w_right = map(right_motor_pwm, 1, 9, 30, 210);
-    }
-    if(right_motor_pwm==left_motor_pwm){
+    }else
+    {
       w_right = map(right_motor_pwm, 1, 9, 30, 210);
       w_left = map(left_motor_pwm, 1, 9, 30, 210);
-  }
+    }
   }  
   }
 
-  if(timer2.hasPassed(500))
-  {
-    Sensors();
-  }
   
  if(timer.hasPassed(20))
- {   
+ {
+  iterator=iterator+1;   
   y_right = (60*encoderPos1/(500*0.02));//rpm
   y_left = (60*encoderPos2/(500*0.02));//rpm
   encoderPos1 = encoderPos2 = 0;
   timer.restart();
-} 
+  }
+
+  if(iterator==15)
+  {
+    Sensors(1);
+  }
+  if(iterator==30)
+  {
+    Sensors(2);
+  }
+  if(iterator==45)
+  {
+    iterator=0;
+    Sensors(3);
+  }
+
+   
    //manual int to bool conversion;
    if(left_motor_direction==1) LMD=LOW;
    if(right_motor_direction==1) RMD=LOW;
