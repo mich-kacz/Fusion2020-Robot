@@ -30,7 +30,7 @@ class ManualControl(Node):
        # self.timer = self.create_timer(timer_period, self.Read_Uart)
         self.subscription  # prevent unused variable warning
         try:
-            self.ser=serial.Serial("/dev/ttyACM0", 19200)
+            self.ser=serial.Serial("/dev/ttyUSB0", 19200)
         except:
             print("Uart not connected")
 
@@ -75,24 +75,40 @@ class ManualControl(Node):
             elif(tright_motor_direction==1 and tleft_motor_direction==0):
                 if(tright_motor_pwm!=lmd_pwm_l):
                     lmd_pwm_r=lmd_pwm_l=tright_motor_pwm
-                if(lmd_pwm_r==lmd_pwm_l==1 or lmd_pwm_r==lmd_pwm_l==2):
-                    right_motor_pwm=lmd_pwm_r+1
-                    left_motor_pwm=lmd_pwm_l-1
-                else:
-                    right_motor_pwm=lmd_pwm_r+2
-                    left_motor_pwm=lmd_pwm_l-2
+
+                if (right_motor_pwm==1 or right_motor_pwm==2):
+                    left_motor_pwm=0
+                if (right_motor_pwm==3 or right_motor_pwm==4):
+                    left_motor_pwm=1
+                if (right_motor_pwm==5 or right_motor_pwm==6):
+                    left_motor_pwm=2
+                if (right_motor_pwm==7 or right_motor_pwm==8):
+                    left_motor_pwm=3
+                if (right_motor_pwm==9):
+                    left_motor_pwm=4
+                
+                right_motor_pwm=lmd_pwm_r
+
                 right_motor_direction=lmd_dir_r
                 left_motor_direction=lmd_dir_l
                 flag=1
             elif(tright_motor_direction==0 and tleft_motor_direction==1):
                 if(tleft_motor_pwm!=lmd_pwm_r):
                     lmd_pwm_l=lmd_pwm_r=tleft_motor_pwm
-                if(lmd_pwm_r==lmd_pwm_l==1 or lmd_pwm_r==lmd_pwm_l==2):
-                    right_motor_pwm=lmd_pwm_r-1
-                    left_motor_pwm=lmd_pwm_l+1
-                else:
-                    right_motor_pwm=lmd_pwm_r-2
-                    left_motor_pwm=lmd_pwm_l+2
+
+                if (left_motor_pwm==1 or left_motor_pwm==2):
+                    right_motor_pwm=0
+                if (left_motor_pwm==3 or left_motor_pwm==4):
+                    right_motor_pwm=1
+                if (left_motor_pwm==5 or left_motor_pwm==6):
+                    right_motor_pwm=2
+                if (left_motor_pwm==7 or left_motor_pwm==8):
+                    right_motor_pwm=3
+                if (left_motor_pwm==9):
+                    right_motor_pwm=4
+
+                left_motor_pwm=lmd_pwm_l
+
                 right_motor_direction=lmd_dir_r
                 left_motor_direction=lmd_dir_l
                 flag=1
@@ -145,20 +161,6 @@ class ManualControl(Node):
             self.ser.write(frame.encode())
         except:
             print("UART error!\n")
-
-    '''
-    def Read_Uart(self):
-        try:
-            ser_bytes=self.ser.readline()
-            message=String()
-            message.data=str(ser_bytes.decode())
-            print(message.data + '\n')
-            self.publisher_.publish(message)
-            
-                
-        except:
-            print('Can not receive data from Uart')
-    '''
 
 def main(args=None):
     rclpy.init(args=args)

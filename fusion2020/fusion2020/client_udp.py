@@ -5,20 +5,21 @@ import struct
 import math
 import rclpy
 import serial
-from time import process_time
+from time import sleep
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
 
 class Camera_capture(Node):
 	
 	sensor='START'
+	sensor_mem=["sens1", "sens2", "sens3"]
 	
 	def __init__(self):
 		super().__init__('camera_capture')
 		self.publisher_=self.create_publisher(Float64MultiArray, 'auto_mode_node', 10 )
 		
 		try:
-			self.ser=serial.Serial("/dev/ttyACM0", 19200)
+			self.ser=serial.Serial("/dev/ttyUSB0", 19200)
 		except:
 			print('Uart not connected')
 		
@@ -129,7 +130,6 @@ class Camera_capture(Node):
 	def Position_control(self, image, lines, offset=0):
 		count=0
 		height, width, _ = image.shape
-		text_sensor_coordinates= (int(width-width*2/3), int(height-height*5/6))
 		for elem in lines:
 			count+=1
 		if count==2:
@@ -138,7 +138,7 @@ class Camera_capture(Node):
 			center_start=(int((left_line+right_line)/2), int(height-height/10))
 			center_end=(int((left_line+right_line)/2), int(2*height/3))
 			center=(int(width/2), int(4*height/5))
-			text_coordinates=(int(width-width/6), int(height-height/10))
+			text_coordinates=(int(width-width/4), int(height-height/10))
 		   
 			image = cv2.arrowedLine(image, center_start, center_end, (0, 255, 0), 5)
 			image=cv2.circle(image, center, 15, (255, 0, 0), 4)
@@ -146,21 +146,39 @@ class Camera_capture(Node):
 			offset=center[0]-center_start[0] #Dodatni offset->skret w lewo
 		    
 			if offset>0:
-				cv2.putText(image,'Lewo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
+				cv2.putText(image,'Lewo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 			else:
-				cv2.putText(image,'Prawo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
+				cv2.putText(image,'Prawo '+ str(offset) , text_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 				
-		cv2.putText(image, 'Czujnik: ' + str(self.sensor), text_sensor_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 3)
 			
 		return image, offset, count
+		
+		
+		
+	def text_writing(self,image):
+		height, width, _ = image.shape
+		text_sensor_coordinates= (int(width-width*3/5), int(height-height*9/10))
+		text_sensor_coordinates1= (int(width-width/4), int(height-height/2))
+		text_sensor_coordinates2= (0, int(height-height/2))
+		
+		if "F:" in str(self.sensor):
+			self.sensor_mem[0]=str(self.sensor)
+		if "R:" in str(self.sensor):
+			self.sensor_mem[1]=str(self.sensor)
+		if "L:" in str(self.sensor):
+			self.sensor_mem[2]=str(self.sensor)
+			
+		cv2.putText(image, self.sensor_mem[0] + 'm', text_sensor_coordinates, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+		cv2.putText(image, self.sensor_mem[1] + 'm', text_sensor_coordinates1, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+		cv2.putText(image, self.sensor_mem[2] + 'm', text_sensor_coordinates2, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+		return image
 	
 	
 	def Read_Uart(self):
 		try:	
 			if self.ser.in_waiting>0 :
-				self.sensor=self.ser.read(self.ser.in_waiting)
-				self.sensor=self.sensor.decode()
-				print('Odebralem')
+				self.sensor=self.ser.read_until(b'c')
+				self.sensor=self.sensor.decode()			
 		except:
 			print('Can not receive data from uart')
 	
@@ -186,7 +204,6 @@ class Camera_capture(Node):
 		cap=cv2.VideoCapture(0, cv2.CAP_V4L2)
 		#cap.set(3, 1280)
 		#cap.set(4, 720)
-		t1=process_time()
 		while(cap.isOpened()):
 			_, frame=cap.read()
 			edges=self.detect_edges(frame) #Zaznaczam kontury
@@ -195,16 +212,17 @@ class Camera_capture(Node):
 			land_lanes=self.creating_two_lanes(frame, segments)
 			ready_image = self.display_lines(frame, land_lanes)
 			
-			if(process_time()-t1>0.2):
-				self.Read_Uart()
-				t1=process_time()
+			self.Read_Uart()
 			
 			(ready_image, offset, is_lines)=self.Position_control(ready_image, land_lanes)
+			
+			ready_image=self.text_writing(ready_image)
 			
 			message=Float64MultiArray()
 			message.data=[float(offset), float(is_lines)]
 			self.publisher_.publish(message)
-			self.send_image(ready_image)	
+			self.send_image(ready_image)
+			sleep(0.05)	
 
 		cap.release()
 		cv2.destroyAllWindows()
