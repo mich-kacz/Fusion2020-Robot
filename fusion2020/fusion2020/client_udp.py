@@ -5,6 +5,7 @@ import struct
 import math
 import rclpy
 import serial
+import re
 from time import sleep
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
@@ -34,8 +35,8 @@ class Camera_capture(Node):
 	#Wykrycie konturów na obrazie
 	def detect_edges(self, image):
     		image_HSV=cv2.cvtColor(image,cv2.COLOR_BGR2HSV) #Zamiana obrazu na HSV(TEN SAM KOLOR MIMO ODCIENIU)
-    		lower_blue = np.array([145, 40, 40]) #Dolna granica koloru na skali HUE
-    		upper_blue = np.array([179, 255, 255])#Gorna granica koloru(to jest pierwszy parametr, reszta bez zmian!!)
+    		lower_blue = np.array([150, 40, 40]) #Dolna granica koloru na skali HUE
+    		upper_blue = np.array([180, 255, 255])#Gorna granica koloru(to jest pierwszy parametr, reszta bez zmian!!)
     		mask = cv2.inRange(image_HSV, lower_blue, upper_blue)#Zostawiam tylko kolory o okreslonych granicach
     		edges = cv2.Canny(mask, 200, 400)#Funkcja znajduje kontury(Parametry zostaja bez zmian!!!)
     		return edges
@@ -219,7 +220,7 @@ class Camera_capture(Node):
 			ready_image=self.text_writing(ready_image)
 			
 			message=Float64MultiArray()
-			message.data=[float(offset), float(is_lines)]
+			message.data=[float(offset), float(is_lines),50.0] #float(re.findall(r'\d', self.sensor_mem[0])[0])]
 			self.publisher_.publish(message)
 			self.send_image(ready_image)
 			sleep(0.05)	

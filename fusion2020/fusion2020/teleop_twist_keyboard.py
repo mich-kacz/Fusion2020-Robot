@@ -11,19 +11,20 @@ else:
     import tty
 print("\tw\na\ts\td\t\n+/- zwiększa prędkość")
 Server_socket=socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-Server_socket.bind(('192.168.50.240', 5008))
+Server_socket.bind((socket.gethostbyname(socket.gethostname()), 5008))
 
 moveBindings = {
     'w': (1, 0, 1, 0),
     'a': (0, 0, 1, 1),
     'd': (0, 0, 1, -1),
-    'k': (0, 0, 1, 0),
     's': (-1, 0, 1, 0),
+    'k': (0, 0, 1, 0)
 }
 
 speedBindings = {
     '+': (1, 0),
     '-': (-1, 0),
+    'm': (0, 1),
     ##'e': (0, 1, 0),
     ##'c': (0, -1, 0),
     ##'r': (0, 0, 1),
@@ -85,18 +86,18 @@ def main():
                 th = moveBindings[key][3]
             elif key in speedBindings.keys():
                 speed = speed + speedBindings[key][0]
+                if control_vel==1:
+                    control_vel=control_vel+speedBindings[key][1]
+                else:
+                    control_vel=control_vel-speedBindings[key][1]
+
                 if(speed > 9.0):
-                    if(control_vel==2.0): #Tu zmiana na 2 bo jest blad gdzies
-                        control_vel = 2.0
-                        speed = 1.0
-                    else:
-                        speed=9.0
+                    speed=9.0
                 if(speed < 1.0):
-                    if(control_vel==1.0):
-                        speed = 1.0
-                    else:
-                        speed=9.0
-                        control_vel=1.0
+                    speed = 1.0
+                        
+
+
                 print(vels(speed, control_vel))
                 status = (status + 1) % 15
             else:

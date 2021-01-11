@@ -3,6 +3,7 @@ from rclpy.node import Node
 import serial
 from std_msgs.msg import Float64, String
 from time import sleep
+import pymysql
 ## global variables
 val_x=0
 itemp=0
@@ -20,7 +21,13 @@ lmd_dir_l=0
 lmd_dir_r=0
 up=0
 
+
 class ManualControl(Node):
+
+    frame_bd=0
+    count_bd = 0
+    last_frames = []
+    
 
     def __init__(self):
         super().__init__('manual_control')
@@ -37,6 +44,10 @@ class ManualControl(Node):
     def listener_callback(self, msg):
         global val_x, itemp, right_motor_pwm, left_motor_pwm, tright_motor_pwm, tleft_motor_pwm, tright_motor_direction, tleft_motor_direction, lmd_pwm_r, lmd_pwm_l, lmd_dir_r, lmd_dir_l, flag
         val_x=int(msg.data)
+
+        if val_x>19999:
+            return
+
         itemp=int(val_x/10000)
         tright_motor_pwm=int(val_x/1000 - itemp*10)
         tleft_motor_pwm=int(val_x/100 - itemp*100 - tright_motor_pwm*10)
@@ -154,6 +165,12 @@ class ManualControl(Node):
         print("kierunek lewego silnika = ", left_motor_direction)
         print("flag = ", flag)
         controls = itemp*10000 + right_motor_pwm*1000 + left_motor_pwm*100 + right_motor_direction*10 + left_motor_direction
+        
+        #Data base part
+        self.frame_bd=controls
+        self.data_base_info()
+        self.data_base_update()
+
 
         frame=str(controls)
         print(frame)
@@ -162,7 +179,39 @@ class ManualControl(Node):
         except:
             print("UART error!\n")
 
+
+
+    def data_base_info(self): # Function is downloading data from data base
+        try:
+           # conn=sqlite3.connect('/home/ubuntu/dev_ws/src/fusion2020/fusion2020/auto_logs.db')
+           conn=pymysql.connect(host='178.219.136.30', user='admin', passwd='fusion2020', database='HCR')
+        except:
+            print("TUTAJ")
+        c=conn.cursor()
+        count=c.execute('SELECT COUNT(NR) FROM MANUAL_LOGS')
+        self.count_db=count
+        if self.count_bd>5:
+            last_5=c.execute("SELECT FRAME FROM MANUAL_LOGS WHERE NR>=('%d'-5)" %self.count_db)
+            self.last_frames=last_5
+        conn.close()
+
+    def data_base_update(self): # Function is uploading data to data base
+        self.count_bd=self.count_bd+1
+        #conn=sqlite3.connect('/home/ubuntu/dev_ws/src/fusion2020/fusion2020/auto_logs.db')
+        conn=pymysql.connect(host='178.219.136.30', user='admin', passwd='fusion2020', database='HCR')
+        c=conn.cursor()
+        c.execute("INSERT INTO MANUAL_LOGS VALUES(%s, %s, CURRENT_TIMESTAMP)",(self.count_bd, self.frame_bd))
+        conn.commit()
+        conn.close()
+
+
+
 def main(args=None):
+    conn=pymysql.connect(host='178.219.136.30', user='admin', passwd='fusion2020', database='HCR')
+    c=conn.cursor()
+    c.execute("DELETE FROM MANUAL_LOGS")
+    conn.commit()
+    conn.close()
     rclpy.init(args=args)
     manual_control = ManualControl()
     rclpy.spin(manual_control)
