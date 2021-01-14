@@ -6,9 +6,12 @@ import math
 import rclpy
 import serial
 import re
+import subprocess
+import psutil
 from time import sleep
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
+
 
 class Camera_capture(Node):
 	
@@ -26,6 +29,7 @@ class Camera_capture(Node):
 		
 		#Constructor creates socket, port and gets ip from input
 		self.Client_socket=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+		self.Client_socket.bind((socket.gethostbyname(socket.gethostname()), 5006))
 		self.server_ip=input('Podaj ip serwera - ')
 		self.adress=5006
 	
@@ -221,28 +225,59 @@ class Camera_capture(Node):
 			
 			message=Float64MultiArray()
 			message.data=[float(offset), float(is_lines),50.0] #float(re.findall(r'\d', self.sensor_mem[0])[0])]
+			code=self.Client_socket.recvfrom(2**16, socket.MSG_DONTWAIT)
+			code2=code.decode()
+			if code2=='000':
+				break
 			self.publisher_.publish(message)
 			self.send_image(ready_image)
 			sleep(0.05)	
 
 		cap.release()
 		cv2.destroyAllWindows()
-		self.Client_socket.close()
-		
+		self.Client_socket.close()	
 		
 
 def main(args=None):
     print('Hi from robot.')
     rclpy.init(args=args)
+    code2='100'# Kod neutralny nic sie nie dzieje
     
-    camera_capture=Camera_capture()
-    
-    camera_capture.camera_start()
-    
-    
-    camera_capture.destroy_node()
+    PID=0
+    Client_socket=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    Client_socket.bind((socket.gethostbyname(socket.gethostname()), 5006))
+    flask_server=subprocess.Popen(['python3 flask_serw.py'], shell=True, cwd='/home/ubuntu/dev_ws/src/fusion2020/fusion2020/')
+    PID=flask_server.pid
+    PID=PID+1
+    while code2!='000': #Kod zakonczenia programu
+    	code, addres=Client_socket.recvfrom(2**16)
+    	code2=code.decode()
+    	if code2=='001':# Kod dla PC apki
+    		Client_socket.close()
+    		camera_capture=Camera_capture()
+    		camera_capture.camera_start()
+    		camera_capture.destroy_node()
+    		Client_socket=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    		Client_socket.bind((socket.gethostbyname(socket.gethostname()), 5006))
+    	elif code2=='011':#Kod dla mobile devices
+    		if PID==0:
+    			flask_server=subprocess.Popen(['python3 flask_serw.py'], shell=True, cwd='/home/ubuntu/dev_ws/src/fusion2020/fusion2020/')
+    			PID=flask_server.pid
+    			PID=PID+1
+    	elif code2=='010':
+    		if PID!=0:
+    			p=psutil.Process(PID)
+    			sleep(0.1)
+    			p.kill()
+    			PID=0
+    	elif code2=='000':
+    		Client_socket.close()
+    		break
+    	code2='100'
+    	sleep(0.2)
     rclpy.shutdown()
     print('Bye bye')
-
+    
+	
 if __name__ == '__main__':
     main()
