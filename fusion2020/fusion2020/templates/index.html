@@ -1,11 +1,15 @@
-<body>
+<body style="background-color:orange;">
 <div class="container">
-	<div class="row">
-		<div class="col-lg-8 offset-lg-2" style="color:#0000FF">
-			<center>
-			<h3 class="mt-5">Live streaming from AGV robot Fusion</h3>
-			<img src="{{ url_for('video_feed') }}" width="auto" height="auto">
-		</div>
-	</div>
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2" style="color:#0000FF">
+            <center>
+            <h1 class="mt-5" style="color:white;font-family:sans-serif;background-color:#FF8C00">
+            Live streaming from AGV robot Fusion
+            </h1>
+            <div style="background-color:white">
+            <img src="{{ url_for('video_feed') }}" width="auto" height="auto">
+            </div>
+        </div>
+    </div>
 </div>
-</body>	
+</body>
